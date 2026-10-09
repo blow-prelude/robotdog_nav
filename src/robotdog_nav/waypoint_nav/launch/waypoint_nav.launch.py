@@ -1,8 +1,9 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
-from launch.substitutions import LaunchConfiguration
-from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.conditions import IfCondition, UnlessCondition
 import os
 
@@ -31,22 +32,15 @@ def generate_launch_description():
         default_value='true',
         description='Enable simulation mode')
 
-    gps_imu_fusion_node = Node(
-        package='gps_imu_fusion',
-        executable='gps_imu_fusion_node',
-        name='gps_imu_fusion_node',
-        output='screen',
-        parameters=[
-            os.path.join(
-                get_package_share_directory('gps_imu_fusion'),
-                'config',
-                'params.yaml'
-            )
-        ],
-        remappings=[
-            ('/imu', '/livox/imu'),  # Map imu/data to /imu/data for IMU data
-            ('/gps/data', '/gps/data'),  # Map gps/data to /gps/data for GPS data
-        ]
+    # 复用独立的 gps_imu_fusion launch，避免重复定义节点；显式传递 use_sim_time，
+    # 保证仿真时 /world_odom 与 TF world→base_link 使用仿真时钟
+    gps_imu_fusion = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(PathJoinSubstitution([
+            get_package_share_directory('gps_imu_fusion'),
+            'launch',
+            'gps_imu_fusion.launch.py'
+        ])),
+        launch_arguments={'use_sim_time': use_sim_time}.items()
     )
 
     # RViz2 node to visualize navigation
@@ -116,7 +110,7 @@ def generate_launch_description():
         declare_use_sim_time_argument,
         declare_params_file_argument,
         declare_simulation_argument,
-        gps_imu_fusion_node,
+        gps_imu_fusion,
         rviz_node,
         # External Nav2 controller server
         controller_server_node,

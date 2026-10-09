@@ -6,7 +6,7 @@ from launch_ros.actions import Node
 
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, ExecuteProcess,
-                            IncludeLaunchDescription)
+                            IncludeLaunchDescription, TimerAction)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration, PythonExpression
@@ -146,6 +146,13 @@ def generate_launch_description():
     )
 
     # joint_group_position_controller
+    # 延迟 spawn：等待 gzserver 完成 world 加载后再生成机器人，
+    # 避免 world 未就绪时 spawn 服务报 "spawn service timed out"
+    delayed_gazebo_spawner_cmd = TimerAction(
+        period=2.0,
+        actions=[start_gazebo_spawner_cmd],
+    )
+
     return LaunchDescription(
         [
             declare_robot_name,
@@ -163,7 +170,7 @@ def generate_launch_description():
             declare_description_path,
             start_gazebo_server_cmd,
             start_gazebo_client_cmd,
-            start_gazebo_spawner_cmd,
+            delayed_gazebo_spawner_cmd,
             load_joint_state_controller,
             # load_joint_trajectory_position_controller
             load_joint_trajectory_effort_controller,

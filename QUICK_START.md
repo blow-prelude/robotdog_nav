@@ -100,7 +100,7 @@ ros2 launch robot_scene go2_lidar_gps.launch.py
 
 # 终端 2：启动定位和导航
 source install/setup.bash
-ros2 launch gps_imu_fusion gps_imu_fusion.launch.py use_sim_time:=true &
+# ros2 launch gps_imu_fusion gps_imu_fusion.launch.py use_sim_time:=true &
 ros2 launch waypoint_nav waypoint_nav.launch.py use_sim_time:=true
 
 # 终端 3：启动执行服务

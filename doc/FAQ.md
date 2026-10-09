@@ -166,6 +166,6 @@ colcon build --symlink-install
 
 ## 获取更多帮助
 
-- 详细测试指南：[QUICK_START.md](QUICK_START.md)
-- 机器狗运动问题：[doc/robot_moving_issue.md](doc/robot_moving_issue.md)
-- 系统架构：[README.md](README.md#系统架构)
+- 详细测试指南：[QUICK_START.md](../QUICK_START.md)
+- 机器狗运动问题：[doc/robot_moving_issue.md](./robot_moving_issue.md)
+- 系统架构：[README.md](../README.md#系统架构)

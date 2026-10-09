@@ -6,3 +6,5 @@ install/
 
 .vscode/
 .idea/
+
+**/__pycache__/

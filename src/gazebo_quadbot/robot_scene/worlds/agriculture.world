@@ -20,6 +20,9 @@
       <real_time_update_rate>1000</real_time_update_rate>
     </physics>
     <scene>
+      <!-- 背景改为天蓝色、环境光降为常规值:原值全白导致白色地面与背景融为一体,场景看似未加载
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.65 0.8 0.95 1</background> -->
       <ambient>1 1 1 1</ambient>
       <background>1 1 1 1</background>
       <shadows>1</shadows>
@@ -52,7 +55,8 @@
     </state>
     <gui fullscreen='0'>
       <camera name='user_camera'>
-        <pose frame=''>218.674 28.4041 66.9437 0 0.275643 3.14159</pose>
+        <!-- 相机默认对准原点(机器狗出生点):原值(218, 28, 67)距原点 220m,视野内一片空白 -->
+        <pose frame=''>2.5 -2.5 1.5 0 0 2.36</pose>
         <view_controller>orbit</view_controller>
         <projection_type>perspective</projection_type>
       </camera>
