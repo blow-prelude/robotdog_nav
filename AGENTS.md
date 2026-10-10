@@ -1,6 +1,6 @@
 # Repository Guidelines（仓库指南）
 
-本仓库是一个 ROS 2 Humble 工作空间，用于宇树 Go2/Go2W 四足机器人航点导航：指控端通过 ROS 服务下发 JSON 任务，自研无图导航器将其转换为 GPS/ENU 航点并执行，由 Gazebo Classic 11 四足仿真闭环验证。AI 助手注意：假定遵循 colcon/ament 规范，节点为 C++14，使用 ROS launch 文件，注释与文档均为中文。
+本仓库是一个 ROS 2 Humble 工作空间，用于宇树 Go2/Go2W 四足机器人航点导航：指控端通过 ROS 服务下发 JSON 任务，自研无图导航器将其转换为 GPS/ENU 航点并执行，由 Gazebo Classic 11 四足仿真闭环验证。AI 助手注意：假定遵循 colcon/ament 规范，节点为 C++14，使用 ROS launch 文件，注释与文档均为中文，日志输出为英文。
 
 ## 项目概述
 
@@ -31,6 +31,14 @@
 - **定位层** — `gps_imu_fusion`：融合 `/gps/data` + `/livox/imu` → `/world_odom` @10 Hz + TF `world→base_link`。注意 TF 分工：`world→base_link`（融合定位）与 `odom→base_footprint`（Gazebo 里程计插件）并存；导航配置使用的坐标系为 `world`/`base_link`。
 - **仿真层** — `gazebo_quadbot`：Gazebo Classic 11、champ 步态控制器、ros2_control（腿部 effort、轮毂 velocity）、自研 Livox Mid-360 Gazebo 插件。
 - 两个仿真入口：`go2_lidar_gps.launch.py`（足式 Go2，多数文档/测试使用）与 `go2w_lidar_gps.launch.py`（轮足 Go2W）。若 `go2_lidar_gps.launch.py` 下机器人漂移（champ `close_loop_odom: true` 所致），改用 `go2_lidar_gps_static.launch.py`。
+
+## 设计原则
+
+新增功能与重构遵循以下三条原则。对内嵌上游代码（`navigation2/`、`champ/`）仅做外科手术式修改，不强求套用。
+
+- **分层架构**：每层只负责一类功能，层间通过标准化接口通信。对应上文"任务层 → 导航层 → 定位层 → 仿真层"的划分：层间只经 ROS topic/service/action 与 `msg_set_msgs` 消息传递数据，禁止跨层 include 他包内部头文件、直接读取他层内部状态或绕过接口"抄近路"。
+- **模块解耦**：模块只依赖接口、不依赖实现，边界接口是唯一契约。ROS 侧契约 = 消息/服务定义（`msg_set_msgs`）+ 参数文件（`config/params.yaml`）+ 话题/服务名；包内侧契约 = 头文件公开声明。修改契约必须同步全部使用方；仅改实现时不得迫使调用方跟着改动。
+- **文件原子化**：一个文件一个单一职责；新增功能优先新建文件，而不是向既有大文件持续追加。当一个文件出现第二类职责时即拆分（拆分粒度参照 `waypoint_nav` 中 nav_core / nav_fsm / nav_waypoint_node）。
 
 ## 关键目录
 
@@ -66,36 +74,14 @@ source install/setup.bash
 构建（仓库根目录执行；`build/ install/ log/` 为 gitignore 的 colcon 输出）：
 
 ```bash
+colcon build --packages-select execute_task_server msg_set_msgs --symlink-install --cmake-args DCMAKE_EXPORT_COMMANDS=ON # 最快迭代
+colcon build --symlink-install --cmake-args DCMAKE_EXPORT_COMPILE_COMMANDS=ON             # 全量构建，首次约 20-30 分钟
+rm -rf build/ install/ log/     # 构建异常时清理
 ./build.sh                                   # colcon build --symlink-install --parallel-workers $(nproc) \
                                              #   --cmake-args -DCMAKE_BUILD_TYPE=Release
-colcon build --packages-select execute_task_server msg_set_msgs --symlink-install   # 最快迭代
-colcon build --symlink-install               # 全量构建，首次约 20-30 分钟
-rm -rf build/ install/ log/ && ./build.sh    # 构建异常时清理后重建
 ```
 
-运行（典型全链路流程）：
 
-```bash
-./start_simulation.sh                        # 缺包时自动构建 champ/go2/go2w/mid360/robot_scene，并启动仿真
-ros2 launch robot_scene go2_lidar_gps.launch.py   # 或 go2w_lidar_gps.launch.py
-./launch.sh dognav                           # waypoint_nav + gps_imu_fusion + RViz（use_sim_time:=true）
-./launch_service.sh taskserver               # execute_task_server（agent_id:=uav1）
-./launch_service.sh full                     # 三个组件在同一终端后台/前台一并启动
-python3 test_execute_task_py.py              # 4 用例端到端测试
-./stop_robot.sh                              # 向 /cmd_vel 发布零 Twist
-./stop_robot_gazebo.sh                       # gz service set_pose / world reset
-./fix_gazebo.sh                              # Gazebo 诊断 + 缓存清理
-```
-
-调试开关：
-
-```bash
-ros2 param set /nav_waypoint_node use_controller_server false   # 切换为内置纯跟踪
-ros2 topic echo /nav_status                                     # FSM 状态
-ros2 topic info /waypoint_goals --verbose                       # 校验发布/订阅接线
-ros2 control list_controllers                                   # controller_manager 状态
-ros2 run teleop_twist_keyboard teleop_twist_keyboard            # 手动遥控
-```
 
 ## 代码规范与常见模式
 
@@ -104,31 +90,19 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard            # 手动遥控
 - **节点接线模式**：每个节点包包含 `src/<node>.cpp`、`include/<pkg>/…`、`config/params.yaml`（ROS 参数，禁止硬编码）、`launch/<pkg>.launch.py`，并在构造函数中声明参数。新增节点遵循此布局。
 - **FSM 状态管理**：航点执行是手写枚举状态机（`nav_fsm.hpp`），由 10 Hz 定时回调驱动——不是行为树。状态迁移保持在 FSM 类内部。
 - **配置优先于代码**：可调项（goal_tolerance、linear_velocity、控制器选择）集中在 `config/params.yaml` / launch 参数；实机调参使用降速值（goal_tolerance 0.5、linear_velocity 0.5）——见 `doc/go2w_real_deployment.md`。
+- **边界校验、内部信任**：数据校验与类型检测集中在接口边界——服务回调（如 execute_task_server 解析 request_json）、话题订阅回调、ROS 参数读取、外部输入解析；内部实现信任边界已完成校验，不写重复的判空/类型/范围防御。
+- **可读性与简约**：代码保持较高可读性与简约性，优先直白实现，避免过度抽象、过早优化与炫技式写法。
 - **坐标系约定**：航点坐标系为 `gps`（经纬度，自动转 ENU）或局部 `world` ENU，按任务经 `is_gps_aid` 选择；yaw 单位弧度，每点 `vel` 单位 m/s。
-- 注释、README 与 doc/ 均为中文，保持该风格。
+- 注释、README 与 doc/ 均为中文，日志输出为英文，保持该风格。
 - 内嵌代码（`navigation2/`、`champ/`）是带本地修改的上游源码——只做外科手术式修改，严禁从上游重新生成覆盖。
 
-## 重要文件
-
-- `src/robotdog_nav/execute_task_server/src/execute_task_node.cpp` — 任务服务入口，JSON 任务格式定义处
-- `src/robotdog_nav/execute_task_server/srv/ExecuteTask.srv` — `request_json`/`response_json`
-- `src/robotdog_nav/waypoint_nav/src/nav_core.cpp` + `include/waypoint_nav/nav_fsm.hpp` — 导航核心逻辑
-- `src/robotdog_nav/waypoint_nav/config/params.yaml` — 导航 + Nav2 控制器/代价地图参数
-- `src/robotdog_nav/gps_imu_fusion/config/params.yaml` — GPS 原点（`origin_lat/lon/alt`）、yaw 偏移
-- `src/gazebo_quadbot/robot_scene/launch/go2_lidar_gps.launch.py` / `go2w_lidar_gps.launch.py` — 仿真 bringup 入口
-- `src/gazebo_quadbot/robot_scene/xacro/go2w_description.urdf.xacro` — 机器人模型 + ros2_control + Gazebo 插件
-- `src/gazebo_quadbot/robots/go2w_control/src/hybrid_motion_controller.py` — cmd_vel 腿/轮拆分
-- `src/gazebo_quadbot/robots/mid360_simulation/src/mid360_points_plugin.cpp` — LiDAR 仿真插件
-- `build.sh`、`start_simulation.sh`、`launch.sh`、`launch_service.sh` — 运维包装脚本
-- `QUICK_START.md` — 三档测试方案（仅服务 → 无 Gazebo 导航 → 全量仿真）；`TEST_REPORT.md` — 测试通过记录
 
 ## 运行时/工具链偏好
 
 - **必需运行时**：Ubuntu 22.04、ROS 2 Humble（`/opt/ros/humble`）、Python 3.10、Gazebo Classic 11 + `ros-humble-gazebo-ros-pkgs` + `gazebo_ros2_control`（插件缺失 → `sudo ./install_gazebo_ros.sh`）。
-- **标准环境**：devcontainer 镜像 `dddmr_gz:20260407_05`（`.devcontainer/devcontainer.json`）——工作空间挂载至 `/workspace`，`--privileged --network=host --gpus=all`，X11 透传，NVIDIA GL 由 `postCreateCommand`（`setup_gpu.sh`）配置。在无容器的 WSL2 上需保证 GPU 渲染，否则退化为 llvmpipe 软渲染。
 - **包管理**：系统依赖用 apt + 构建用 colcon；项目无 pip 依赖。
-- **外部依赖**：`multi_task_bridge` 位于独立工作空间（README 引用的是过期绝对路径）。当前检出路径为 `/home/wtr/projects/robotdog_nav` —— README/QUICK_START/测试脚本中的 `/media/lenovo/1/project/gazebo/...` 均为过期路径，执行时需替换为本地路径。`test_full_system.sh` source 了过期路径，未修复前必然失败。
-- **易踩坑点**：`global2local/` 已被 `COLCON_IGNORE`（遗留无人机代码）；champ `bringup.launch.py` 中 `state_estimation_node` 与两个 EKF 节点已被注释；`nav2_straight_planner` 未被任何 launch 引用。
+- **外部依赖**：`multi_task_bridge` 位于独立工作空间（README 引用的是过期绝对路径）。 README/QUICK_START/测试脚本中的 `/media/lenovo/1/project/gazebo/...` 均为过期路径，执行时需替换为本地路径。`test_full_system.sh` source 了过期路径，未修复前必然失败。
+
 
 ## 测试与质量保障
 
@@ -143,3 +117,9 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard            # 手动遥控
 | `src/robotdog_nav/waypoint_nav/test/test_world_odom_nav.py` | 独立 rclpy 节点：直接发布 MultiGoal，分阶段监视 `/cmd_vel` + `/nav_status` | 导航栈运行中 |
 
 通过与否依据服务 JSON 响应与 rosout 日志判断，无断言。全保真运行需 Gazebo + gps_imu_fusion + waypoint_nav 就绪（QUICK_START.md 方案 C）；服务级测试无需仿真（方案 A）。RViz 中观察结果（`waypoint_nav/config/nav_visualization.rviz`）：绿色球体 = 当前目标，蓝色球体 = 待执行航点，绿色线 = 规划路径。
+
+## 工作规范
+
+- **需求澄清**：需求不清楚时，先向用户提问直至完全清晰再动手，不要基于猜测实现；宁可多问一句，不要返工一轮。
+- **设计与实现文档**：用户开启 plan 模式或明确要求时，设计文档写入 `doc/devel/`，命名 `YYYY-MM-DD-design-主题.md`（如 `2026-09-30-design-remote-panel.md`）；改动较复杂时另写实现文档 `YYYY-MM-DD-plan-主题.md`，存放同一路径。注意与现有 `doc/`（故障排查笔记）区分，二者不混用；未被要求时不主动产出此类文档。
+- **较大改动走 worktree**：在 git worktree 中进行，worktree 统一放在仓库根目录 `.worktree/` 下；完成后由用户决定是否合并，不擅自 merge 回主分支。
