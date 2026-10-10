@@ -10,6 +10,10 @@ fi
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 
+# DDS 域隔离：与局域网其他 ROS 设备（默认域 0）隔离，防止 /clock 等话题串扰
+# （见 doc/ros_domain_clock_conflict.md）；跨机通信对端须使用相同域 ID
+export ROS_DOMAIN_ID=42
+
 case "$1" in
     dognav) ros2 launch waypoint_nav waypoint_nav.launch.py use_sim_time:=true ;;
     gpsloc) ros2 launch gps_imu_fusion gps_imu_fusion.launch.py use_sim_time:=true ;;

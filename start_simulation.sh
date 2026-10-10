@@ -12,6 +12,10 @@ echo ""
 # Source ROS2
 source /opt/ros/humble/setup.bash
 
+# DDS 域隔离：与局域网其他 ROS 设备（默认域 0）隔离，防止 /clock 等话题串扰
+# （见 doc/ros_domain_clock_conflict.md）；跨机通信对端须使用相同域 ID
+export ROS_DOMAIN_ID=42
+
 # Check if install directory exists
 if [ ! -d "install/robot_scene" ]; then
     echo "⚠️  robot_scene package not found. Building..."
