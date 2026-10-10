@@ -128,7 +128,7 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard            # 手动遥控
 - **标准环境**：devcontainer 镜像 `dddmr_gz:20260407_05`（`.devcontainer/devcontainer.json`）——工作空间挂载至 `/workspace`，`--privileged --network=host --gpus=all`，X11 透传，NVIDIA GL 由 `postCreateCommand`（`setup_gpu.sh`）配置。在无容器的 WSL2 上需保证 GPU 渲染，否则退化为 llvmpipe 软渲染。
 - **包管理**：系统依赖用 apt + 构建用 colcon；项目无 pip 依赖。
 - **外部依赖**：`multi_task_bridge` 位于独立工作空间（README 引用的是过期绝对路径）。当前检出路径为 `/home/wtr/projects/robotdog_nav` —— README/QUICK_START/测试脚本中的 `/media/lenovo/1/project/gazebo/...` 均为过期路径，执行时需替换为本地路径。`test_full_system.sh` source 了过期路径，未修复前必然失败。
-- **易踩坑点**：`global2local/` 已被 `COLCON_IGNORE`（遗留无人机代码）；champ `bringup.launch.py` 中 `state_estimation_node` 与两个 EKF 节点已被注释；`nav2_straight_planner` 未被任何 launch 引用。
+- **易踩坑点**：`global2local/` 已被 `COLCON_IGNORE`（遗留无人机代码）；champ `bringup.launch.py` 中 `state_estimation_node` 与两个 EKF 节点已被注释；`nav2_straight_planner` 未被任何 launch 引用；本机固定 `ROS_DOMAIN_ID=42` 做局域网 DDS 域隔离（多机同域会导致 /clock 串扰、`Moved backwards in time` 刷屏，见 `doc/ros_domain_clock_conflict.md`），跨机通信对端须用相同域 ID。
 
 ## 测试与质量保障
 
