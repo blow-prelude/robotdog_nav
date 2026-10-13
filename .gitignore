@@ -6,3 +6,6 @@ install/
 .idea/
 
 **/__pycache__/
+
+# 录制的数据流
+sim_bag*

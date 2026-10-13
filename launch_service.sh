@@ -29,7 +29,9 @@ case "$1" in
         ;;
     full)
         echo "启动完整导航系统（GPS + 导航 + 任务服务）..."
-        # gps_imu_fusion 已由 waypoint_nav.launch.py 包含，无需单独启动（避免同名节点双启动）
+        # 定位(gps_imu_fusion)与导航(waypoint_nav)已解耦，需分别启动；更完整的一键启动见 ./start_system.sh
+        ros2 launch gps_imu_fusion gps_imu_fusion.launch.py use_sim_time:=true &
+        sleep 2
         ros2 launch waypoint_nav waypoint_nav.launch.py use_sim_time:=true &
         sleep 2
         ros2 launch execute_task_server execute_task.launch.py agent_id:=uav1

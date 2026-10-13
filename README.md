@@ -310,6 +310,9 @@ ros2 launch waypoint_nav waypoint_nav.launch.py
 ### 启动导航系统
 
 ```bash
+# 一键启动完整系统（Gazebo + 定位 + 导航 + 任务服务）
+./start_system.sh
+
 # 使用 launch.sh 脚本（原始版本）
 ./launch.sh dognav
 

@@ -224,9 +224,12 @@ ros2 topic echo /cmd_vel
 
 ### 步骤 6: 启动导航系统
 ```bash
-# 启动导航（真实模式）
+# 启动定位融合（与导航已解耦，需分别启动；实机用系统时钟）
 source install/setup.bash
-ros2 launch robotdog_nav waypoint_nav.launch.py \
+ros2 launch gps_imu_fusion gps_imu_fusion.launch.py &
+
+# 启动导航（真实模式）
+ros2 launch waypoint_nav waypoint_nav.launch.py \
   simulation:=false \
   use_sim_time:=false
 ```

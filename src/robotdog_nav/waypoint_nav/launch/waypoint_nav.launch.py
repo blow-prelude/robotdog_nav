@@ -1,10 +1,9 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import LaunchConfiguration
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import UnlessCondition
 import os
 
 
@@ -32,16 +31,9 @@ def generate_launch_description():
         default_value='true',
         description='Enable simulation mode')
 
-    # 复用独立的 gps_imu_fusion launch，避免重复定义节点；显式传递 use_sim_time，
-    # 保证仿真时 /world_odom 与 TF world→base_link 使用仿真时钟
-    gps_imu_fusion = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(PathJoinSubstitution([
-            get_package_share_directory('gps_imu_fusion'),
-            'launch',
-            'gps_imu_fusion.launch.py'
-        ])),
-        launch_arguments={'use_sim_time': use_sim_time}.items()
-    )
+    # 定位层已解耦：gps_imu_fusion 不再由本 launch 包含，需单独启动
+    # （ros2 launch gps_imu_fusion gps_imu_fusion.launch.py 或仓库根目录 ./start_system.sh），
+    # 层间仅通过 /world_odom 与 TF world→base_link 通信
 
     # RViz2 node to visualize navigation
     rviz_node = Node(
@@ -110,7 +102,6 @@ def generate_launch_description():
         declare_use_sim_time_argument,
         declare_params_file_argument,
         declare_simulation_argument,
-        gps_imu_fusion,
         rviz_node,
         # External Nav2 controller server
         controller_server_node,

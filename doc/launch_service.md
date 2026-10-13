@@ -90,5 +90,7 @@ python3 test_execute_task_py.py
 ## 注意事项
 
 - 使用前确保已执行 `colcon build --symlink-install`
-- `full` 模式会自动在后台启动前两个组件
+- `full` 模式会自动在后台启动融合定位与导航，任务服务运行在前台
+- 定位（gps_imu_fusion）与导航（waypoint_nav）的 launch 已解耦，`full` 会分别启动两者
+- 需要连 Gazebo 一起一键启动时，使用 `./start_system.sh`
 - 使用 Ctrl+C 可以停止当前进程

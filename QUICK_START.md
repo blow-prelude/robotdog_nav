@@ -93,14 +93,22 @@ colcon build --symlink-install
 
 ### 2. 启动完整系统
 
+一键启动（推荐，Ctrl-C 一次性停止全部，日志在 log/start_system/ 下）：
+
+```bash
+./start_system.sh
+```
+
+或分终端手动启动：
+
 ```bash
 # 终端 1：启动 Gazebo 仿真
 source install/setup.bash
 ros2 launch robot_scene go2_lidar_gps.launch.py
 
-# 终端 2：启动定位和导航
+# 终端 2：启动定位和导航（两包已解耦，分别启动）
 source install/setup.bash
-# ros2 launch gps_imu_fusion gps_imu_fusion.launch.py use_sim_time:=true &
+ros2 launch gps_imu_fusion gps_imu_fusion.launch.py use_sim_time:=true &
 ros2 launch waypoint_nav waypoint_nav.launch.py use_sim_time:=true
 
 # 终端 3：启动执行服务
