@@ -1,7 +1,10 @@
 import os
 
 import launch_ros
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import (
+    PackageNotFoundError,
+    get_package_share_directory,
+)
 from launch_ros.actions import Node
 
 from launch import LaunchDescription
@@ -36,6 +39,22 @@ def generate_launch_description():
     default_model_path = os.path.join(resource_pkg_share, "xacro/go2_robot_VLP.xacro")
     # default_world_path = os.path.join(resource_pkg_share, "worlds/garage.world")
     default_world_path = os.path.join(resource_pkg_share, "worlds/agriculture.world")
+
+    # Gazebo 靠 GAZEBO_MODEL_PATH 解析 model://：sdformat 会把 URDF 里 mesh 的
+    # package://<pkg>/... 自动改写成 model://<pkg>/...。champ_gazebo 是裸 ExecuteProcess
+    # 起 gzserver，不会像 gazebo_ros/gzserver.launch.py 那样读取 package.xml 中
+    # <gazebo_ros gazebo_model_path=.../> 的 export，所以在这里补上。
+    # 加入各包 share 的父目录（等价于 export 里的 ${prefix}/..），
+    # 这样 model://go2_description/meshes/xxx.dae 才能落位。
+    gazebo_model_paths = []
+    for mesh_pkg in ("go2_description", "go2w_description", "mid360_simulation"):
+        try:
+            gazebo_model_paths.append(os.path.dirname(get_package_share_directory(mesh_pkg)))
+        except PackageNotFoundError:
+            pass
+    if os.environ.get("GAZEBO_MODEL_PATH"):
+        gazebo_model_paths.append(os.environ["GAZEBO_MODEL_PATH"])
+    os.environ["GAZEBO_MODEL_PATH"] = os.pathsep.join(gazebo_model_paths)
 
     declare_use_sim_time = DeclareLaunchArgument(
         "use_sim_time",

@@ -37,8 +37,7 @@
       <visual>
         <origin xyz="0 0 -0.045" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="file://$(find mid360_simulation)/meshes/livox_frame.STL"/>
-          <!-- <mesh filename="$(find mid360_simulation)/meshes/livox_frame.STL"/> -->
+          <mesh filename="package://mid360_simulation/meshes/livox_frame.STL"/>
         </geometry>
         <material name="livox_dark_grey">
           <color rgba="0.3 0.3 0.3 1"/>
@@ -48,8 +47,7 @@
       <collision>
         <origin xyz="-0.011 -0.02329 -0.005" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="file://$(find mid360_simulation)/meshes/livox_frame.STL"/>
-          <!-- <mesh filename="$(find mid360_simulation)/meshes/livox_frame.STL"/> -->
+          <mesh filename="package://mid360_simulation/meshes/livox_frame.STL"/>
         </geometry>
       </collision>
     </link>
@@ -99,6 +97,9 @@
       <sensor type="ray" name="${name}">
         <pose>0 0 0 0 0 0</pose>
         <visualize>true</visualize>
+        <!-- Gazebo 默认 always_on=false：传感器不主动更新，
+             必须显式打开，否则 RayPlugin 的 OnNewLaserScans 永不回调 -->
+        <always_on>true</always_on>
         <update_rate>${update_rate}</update_rate>
 
         <plugin name="${name}_plugin" filename="libmid360_plugin.so">

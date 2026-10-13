@@ -3,7 +3,7 @@
   <!-- Gloabal parameters -->
   <xacro:include filename="$(find robot_scene)/xacro/go2w_const.xacro"/>
 
-  <xacro:property name="mesh_prefix" value="file://$(find go2w_description)/meshes" />
+  <xacro:property name="mesh_prefix" value="package://go2w_description/meshes" />
 
   <xacro:macro name="leg" params="prefix front left">
 
