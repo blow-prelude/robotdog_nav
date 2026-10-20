@@ -263,7 +263,10 @@ ros2 bag record -o sim_bag_$(date +%Y%m%d_%H%M%S) \
 ```bash
 source /opt/ros/humble/setup.bash
 source install/setup.bash
-export ROS_DOMAIN_ID=42          # 与录制时一致
+# 注意：所有终端（含 ros2 service call 所在终端）必须用同一个 ROS_DOMAIN_ID。
+# 本机 ~/.bashrc 默认导出 41；不要只在部分终端覆盖成其他值——
+# 域不一致时服务列表能看到、调用永远卡死。
+echo $ROS_DOMAIN_ID              # 各终端核对一致
 
 ros2 topic info /clock           # Publisher count 必须为 0
 pkill -f gzserver; pkill -f gzclient   # 清除残留 Gazebo

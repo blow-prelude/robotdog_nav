@@ -50,7 +50,7 @@ source /opt/ros/humble/setup.bash
 source install/setup.bash
 ```
 
-- 本机固定 `ROS_DOMAIN_ID=42`（见 doc/ros_domain_clock_conflict.md），录制与回放须同域。
+- **所有终端必须使用同一个 `ROS_DOMAIN_ID`**（含 `ros2 service call` 所在终端）。本机 `~/.bashrc` 当前默认导出 `41`；若只在部分终端 `export` 成其他值（如旧文档写的 42），就会出现"服务列表能看到、调用永远卡死"的现象——列表走 daemon 所在域，调用走当前终端的域。跨机/域隔离背景见 doc/ros_domain_clock_conflict.md。
 - 完整仿真（方案 C）可正常运行。
 
 ## 3. 录制
@@ -120,12 +120,16 @@ ros2 bag info sim_bag_20XXXXXX_XXXXXX
 
 ### 4.1 回放前检查
 
-1. **确认仿真已完全关闭**，无残留 `/clock` 发布者、无残留 `gps_imu_fusion`/Gazebo/`robot_state_publisher`（残留会造成双 `/clock`、双 TF 发布者）：
+**检查 1：确认仿真已完全关闭**，无残留 `/clock` 发布者、无残留 `gps_imu_fusion`/Gazebo/`robot_state_publisher`（残留会造成双 `/clock`、双 TF 发布者）：
 
 ```bash
 ros2 topic info /clock        # Publisher count 必须为 0
 pkill -f gzserver; pkill -f gzclient   # 如有残留
 ```
+
+**检查 2：确认各终端 `ROS_DOMAIN_ID` 一致**：在每个终端执行 `echo $ROS_DOMAIN_ID`，值必须相同（本机 .bashrc 默认 41）。不一致时服务可见但调用卡死（见 §6.9）。
+
+**检查 3：确认服务端真的在线再调用**：`ros2 node list | grep execute_task_node` 必须能看到节点。若节点已退出而 `ros2 service list` 仍显示该服务，是 daemon 的陈旧缓存——先 `ros2 daemon stop` 清理，再核对节点存活，否则调用会永远等不到响应。
 
 ### 4.2 操作步骤
 
@@ -236,6 +240,14 @@ source install/setup.bash
 ### 6.8 同一 bag 的重复回放是确定性的
 
 相同 bag + 相同任务 + 相同配置，每次回放的 TF、`/cmd_vel` 输出一致，适合做算法改动的回归对照；这也意味着 bag 不能替代仿真做闭环调参。
+
+### 6.9 `ros2 service call` 卡死不返回
+
+按概率排查：
+
+1. **服务端已退出**：`ros2 node list | grep execute_task_node` 看不到节点即为此因。服务已死但 `ros2 service list` 仍显示，是 daemon 陈旧缓存（`ros2 daemon stop` 清理后重查）。对死服务调用会永远等不到响应。
+2. **终端间 `ROS_DOMAIN_ID` 不一致**（服务列表能看到、调用卡死的最典型原因）：列表查询走 daemon 所在域，`service call` 的客户端节点在当前终端的域。每个终端 `echo $ROS_DOMAIN_ID` 核对，本机 .bashrc 默认 41。
+3. **客户端终端没 source 工作空间**：会报 "The passed service type is invalid"（见 §6.7），不会卡死；一并记录以便区分。
 
 ## 7. 附录：旧流程（回放 GPS/IMU + 运行 gps_imu_fusion）
 
