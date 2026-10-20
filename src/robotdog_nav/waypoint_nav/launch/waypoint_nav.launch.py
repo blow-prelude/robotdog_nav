@@ -68,10 +68,13 @@ def generate_launch_description():
                 get_package_share_directory('waypoint_nav'),
                 'config',
                 'params.yaml'
-            )
+            ),
+            # 注入仿真时间：回放 bag 时节点自身时间须与仿真钟一致，
+            # 否则发布的 markers/path 带壁钟时间戳，RViz 视为“来自未来”而不显示
+            {'use_sim_time': use_sim_time}
         ],
         remappings=[
-            # ('/world_odom', '/mavros/local_position/odom'), 
+            # ('/world_odom', '/mavros/local_position/odom'),
         ]
     )
 

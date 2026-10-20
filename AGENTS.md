@@ -47,6 +47,7 @@ src/robotdog_nav/            # 应用层 + 算法层软件包（ament_cmake，C+
   execute_task_server/       # JSON 任务服务 → MultiGoal（nlohmann_json）
   waypoint_nav/              # nav_waypoint_node、nav_core、nav_fsm、params.yaml、launch/
   gps_imu_fusion/            # GPS+IMU → /world_odom、TF world→base_link
+  nav_replay_support/        # 回放支撑：odom_to_tf_node（Odometry→TF）+ 静态 base_link→livox
   msg_set_msgs/              # 约 60 个 rosidl 消息类型（MultiGoal、MultiGoalPoint、MultiTask、…）
   nav2_straight_planner/     # 独立 lifecycle 直线规划器（未接入任何 launch）
   navigation2/               # 内嵌（vendored）Nav2 子集（含自定义 theta_star.cpp）——勿直接换成上游版本
@@ -103,6 +104,7 @@ rm -rf build/ install/ log/     # 构建异常时清理
 - **包管理**：系统依赖用 apt + 构建用 colcon；项目无 pip 依赖。
 - **外部依赖**：`multi_task_bridge` 位于独立工作空间（README 引用的是过期绝对路径）。当前检出路径为 `/home/wtr/projects/robotdog_nav` —— README/QUICK_START/测试脚本中的 `/media/lenovo/1/project/gazebo/...` 均为过期路径，执行时需替换为本地路径。`test_full_system.sh` source 了过期路径，未修复前必然失败。
 - **易踩坑点**：`global2local/` 已被 `COLCON_IGNORE`（遗留无人机代码）；champ `bringup.launch.py` 中 `state_estimation_node` 与两个 EKF 节点已被注释；`nav2_straight_planner` 未被任何 launch 引用；本机固定 `ROS_DOMAIN_ID=42` 做局域网 DDS 域隔离（多机同域会导致 /clock 串扰、`Moved backwards in time` 刷屏，见 `doc/ros_domain_clock_conflict.md`），跨机通信对端须用相同域 ID。
+- **bag 回放与定位解耦**：导航栈只依赖 `/world_odom` + TF `world→base_link` + TF `base_link→livox` 契约；回放仅含 `/livox/lidar` + `/world_odom` 的 bag 时，由 `nav_replay_support/replay_tf.launch.py` 重建 TF，**不启动** `gps_imu_fusion`，导航 launch 保持默认 `simulation:=true`。流程见 `doc/rosbag_record_replay.md`；回放为开环验证，重放同一 bag 前须重启导航栈（时间回跳会触发 `TF_OLD_DATA`）。
 
 ## 测试与质量保障
 

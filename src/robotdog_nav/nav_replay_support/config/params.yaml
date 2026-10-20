@@ -1,0 +1,7 @@
+odom_to_tf_node:
+  ros__parameters:
+    # 里程计话题（回放 bag 中的话题）
+    odom_topic: "/world_odom"
+    # 坐标系覆盖：空串表示使用消息自带的 header.frame_id / child_frame_id
+    parent_frame: ""
+    child_frame: ""

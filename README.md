@@ -423,6 +423,7 @@ ros2 param set /nav_waypoint_node use_controller_server true
 - [机器狗运动问题排查](doc/robot_moving_issue.md)
 - [机器狗姿态问题](doc/robot_pose_issue.md)
 - [launch_service 使用说明](doc/launch_service.md)
+- [rosbag 录制与回放测试](doc/rosbag_record_replay.md)
 
 ---
 

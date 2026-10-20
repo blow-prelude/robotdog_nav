@@ -54,7 +54,9 @@ local_costmap:
       width: 16
       height: 16
       resolution: 0.05
-      transform_tolerance: 0.1
+      # 回放 10 Hz 里程计 TF 时，雷达帧到下一帧里程计最大间隔约 0.1 s，
+      # 0.1 容忍度过紧（偶发外推超时），取 0.3；对正常仿真无副作用
+      transform_tolerance: 0.3
       footprint: "[ [0.50, 0.2], [0.50, -0.2], [-0.50, -0.2], [-0.50, 0.2] ]"
       footprint_padding: 0.01
       plugins: ["obstacle_layer", "inflation_layer"]
