@@ -7,6 +7,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -24,6 +25,12 @@ ament_target_dependencies(odom_to_tf_node
 )
 
 install(TARGETS odom_to_tf_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# 虚拟场景 mock 节点（Python 脚本按可执行安装，模式同 go2w_control）
+install(PROGRAMS
+  src/mock_scene_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
