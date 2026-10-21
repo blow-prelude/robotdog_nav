@@ -74,7 +74,7 @@ source install/setup.bash
 构建（仓库根目录执行；`build/ install/ log/` 为 gitignore 的 colcon 输出）：
 
 ```bash
-colcon build --packages-select execute_task_server msg_set_msgs --symlink-install --cmake-args DCMAKE_EXPORT_COMMANDS=ON # 最快迭代
+colcon build --packages-select execute_task_server msg_set_msgs --symlink-install # 最快迭代
 colcon build --symlink-install --cmake-args DCMAKE_EXPORT_COMPILE_COMMANDS=ON             # 全量构建，首次约 20-30 分钟
 rm -rf build/ install/ log/     # 构建异常时清理
 ./build.sh                                   # colcon build --symlink-install --parallel-workers $(nproc) \

@@ -1,0 +1,12 @@
+# ThetaStar 全局规划器（系统 nav2_theta_star_planner，不是 RPP 内部的 theta_star）
+
+planner_server:
+  ros__parameters:
+    GridBased:
+      plugin: "nav2_theta_star_planner/ThetaStarPlanner"
+      how_many_corners: 8
+      w_euc_cost: 1.0
+      w_traversal_cost: 2.0
+      w_heuristic_cost: 1.0
+      allow_unknown: true
+      use_final_approach_orientation: true

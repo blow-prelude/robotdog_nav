@@ -1,0 +1,10 @@
+# NavFn 全局规划器
+
+planner_server:
+  ros__parameters:
+    GridBased:
+      plugin: "nav2_navfn_planner/NavfnPlanner"
+      tolerance: 0.3
+      use_astar: true
+      allow_unknown: true
+      use_final_approach_orientation: true

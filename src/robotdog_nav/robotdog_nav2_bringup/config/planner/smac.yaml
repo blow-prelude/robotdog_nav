@@ -1,0 +1,21 @@
+# SMAC 2D 全局规划器
+
+planner_server:
+  ros__parameters:
+    GridBased:
+      plugin: "nav2_smac_planner/SmacPlanner2D"
+      tolerance: 0.3
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 2.0
+      allow_unknown: true
+      use_final_approach_orientation: true
+      downsample_costmap: false
+      downsampling_factor: 1
+      cost_travel_multiplier: 2.0
+      smoother:
+        tolerance: 1.0e-10
+        max_iterations: 1000
+        w_data: 0.2
+        w_smooth: 0.3
+        do_refinement: true
