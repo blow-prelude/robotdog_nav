@@ -21,7 +21,19 @@ def generate_launch_description():
         mid360_lib if not prev_plugins else f"{mid360_lib}:{prev_plugins}"
     )
 
-    default_world = os.path.join(pkg_share, "worlds", "bigHHH.world")
+    # mid360 的 mesh 是 package://mid360_simulation/...（sdformat 会改写成 model://）。
+    # 不进 GAZEBO_MODEL_PATH 时本地解析失败，Gazebo 会转而访问在线模型库，
+    # 网络不通导致 gzserver 段错误（exit -11），与 go2_lidar_gps.launch.py 对齐
+    mid360_model_parent = os.path.dirname(get_package_share_directory("mid360_simulation"))
+    prev_model_paths = os.environ.get("GAZEBO_MODEL_PATH", "")
+    os.environ["GAZEBO_MODEL_PATH"] = (
+        mid360_model_parent
+        if not prev_model_paths
+        else f"{mid360_model_parent}:{prev_model_paths}"
+    )
+
+    # bigHHH.world 从未入库（源码/install/git 历史均无），默认值改回仓库通用的 agriculture.world
+    default_world = os.path.join(pkg_share, "worlds", "agriculture.world")
     xacro_file = os.path.join(pkg_share, "xacro", "diff_bot.xacro")
 
     declare_use_sim_time = DeclareLaunchArgument(
@@ -70,7 +82,9 @@ def generate_launch_description():
         ),
         launch_arguments={
             "world": LaunchConfiguration("world"),
-            "extra_gazebo_args": " --verbose",
+            # 禁止在线模型检索：mesh 解析失败时 Gazebo 会访问 models.gazebosim.org，
+            # 网络不通时 gzserver 段错误（exit -11），与 go2/champ launch 行为对齐
+            "extra_gazebo_args": " --verbose --disable-online-model-retrieval",
         }.items(),
     )
 

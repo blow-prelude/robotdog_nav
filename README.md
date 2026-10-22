@@ -43,11 +43,6 @@ waypoint_nav → 执行多点导航
 
 适用于直接测试 waypoint_nav 导航功能。
 
-> **前提**: 需要先构建仿真环境包。如果未构建，请先执行：
-> ```bash
-> colcon build --packages-select robot_scene go2_description mid360_simulation --symlink-install
-> ```
-
 #### 终端 1：启动 Gazebo 仿真
 
 ```bash
@@ -56,10 +51,6 @@ source install/setup.bash
 ros2 launch robot_scene go2_lidar_gps.launch.py
 ```
 
-> **提示**: 如果 `robot_scene` 包未找到，请确保已构建 gazebo_quadbot 相关包。也可以直接使用 Gazebo 加载已有世界文件：
-> ```bash
-> gz sim -r /media/lenovo/1/project/gazebo/0713/robotdog_nav/src/gazebo_quadbot/robot_scene/worlds/your_world.sdf
-> ```
 
 #### 终端 2：启动导航节点
 
@@ -117,10 +108,6 @@ ros2 topic pub --once /waypoint_goals msg_set_msgs/msg/MultiGoal "{
 
 适用于测试从指控端到导航执行的完整链路。
 
-> **前提**: 需要先构建仿真环境包和相关导航包：
-> ```bash
-> colcon build --packages-select robot_scene go2_description mid360_simulation waypoint_nav gps_imu_fusion execute_task_server --symlink-install
-> ```
 
 #### 启动 4 个终端
 
@@ -152,10 +139,6 @@ source install/setup.bash
 python3 test_execute_task_py.py
 ```
 
-> **提示**: 
-> - 每个终端都需要先执行 `source` 命令激活环境
-> - 等待每个节点启动完成后再启动下一个（观察日志输出）
-> - 测试完成后，可在 RViz 中查看航点标记和规划路径
 
 #### 测试说明
 
@@ -239,35 +222,57 @@ ros2 topic pub --once /uav1/swarms_backend/global/multitask msg_set_msgs/msg/Mul
 
 ---
 
-## 构建命令
+### 方式四：mock 虚拟场景（无 Gazebo 闭环验证）
 
-### 快速构建（仅测试 execute_task_server）
+适用于无 Gazebo、无 rosbag 的轻量闭环验证：由 `nav_replay_support` 的 mock 节点合成障碍点云、
+按 `/cmd_vel` 积分移动机器人并发布 `/clock`，在 RViz 中验证任务链路、闭环到达与绕障规划。
 
-```bash
-cd /media/lenovo/1/project/gazebo/0713/robotdog_nav
-colcon build --packages-select execute_task_server msg_set_msgs --symlink-install
-```
-
-### 标准构建（测试导航链路）
+#### 终端 1：启动虚拟场景（mock 节点 + odom_to_tf + 静态 livox TF）
 
 ```bash
-colcon build --packages-select waypoint_nav gps_imu_fusion execute_task_server msg_set_msgs --symlink-install
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 launch nav_replay_support mock_scene.launch.py
 ```
 
-### 完整构建（包含仿真环境）
+#### 终端 2：启动导航栈（二选一，use_sim_time:=true，simulation 保持默认 true）
 
 ```bash
-# 首次构建需要 20-30 分钟
-colcon build --symlink-install
+# waypoint_nav 直线栈（直线规划会穿墙，验证闭环到达）
+ros2 launch waypoint_nav waypoint_nav.launch.py use_sim_time:=true
+
+# 或 Nav2 新栈（NavFn 全局规划绕开 mock 障碍）
+ros2 launch robotdog_nav2_bringup world_nav2.launch.py
 ```
 
-> **注意**: 
-> - 如果首次构建失败，请清理构建缓存后重试：
->   ```bash
->   rm -rf build/ install/ log/
->   colcon build --symlink-install
->   ```
-> - 详细构建说明请参考 [QUICK_START.md](QUICK_START.md)
+#### 终端 3：启动指控端接口服务
+
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 launch execute_task_server execute_task.launch.py agent_id:=uav1
+```
+
+#### 终端 4：下发任务（仅 local 航点——mock 不提供 /gps/data）
+
+```bash
+ros2 service call /agent/uav1/execute_task execute_task_server/srv/ExecuteTask '{
+  request_json: "{\"mission_id\":\"mock_01\",\"agent_id\":\"uav1\",\"capability_id\":\"goto_waypoints\",\"params\":{\"waypoint_frame\":\"local\",\"waypoints\":[{\"x\":4.0,\"y\":0.0,\"vel\":0.5}]}}"
+}'
+```
+
+预期表现（默认场景：墙在 (2,0)，验证目标 (4,0)）：
+
+- RViz 中半透明蓝色方块/立柱（`/mock_scene/markers`）与点云表面贴合，costmap 出现障碍膨胀格；
+- waypoint_nav 栈：EXECUTING_PATH → COMPLETED，闭环到达（允许穿墙，无碰撞检测）；
+- nav2_bringup 栈：`/plan` 绕行 |y|≈2.8 m，沿绕行路径到达、不穿墙。
+
+> **时钟与互斥规则**: mock 是唯一 `/clock`、唯一 `/world_odom`、唯一 `world→base_link` 发布者——
+> 禁止与 Gazebo、`ros2 bag play --clock`、`gps_imu_fusion` 同跑；换导航栈前先彻底关闭旧栈
+> （双 `/cmd_vel` 会污染运动学积分）；所有终端须同 `ROS_DOMAIN_ID`。mock 崩溃后直接重启即可
+> （墙钟不回跳，无需重启导航栈）。
+
+详细参数、场景配置与限制见 [nav_replay_support README](src/robotdog_nav/nav_replay_support/README.md)。
 
 ---
 
@@ -285,7 +290,6 @@ colcon build --symlink-install
 
 ```bash
 # 首次需要构建所有包
-cd /media/lenovo/1/project/gazebo/0713/robotdog_nav
 rm -rf build/ install/ log/  # 清理旧构建
 colcon build --symlink-install
 
@@ -312,12 +316,6 @@ ros2 launch waypoint_nav waypoint_nav.launch.py
 ```bash
 # 一键启动完整系统（Gazebo + 定位 + 导航 + 任务服务）
 ./start_system.sh
-
-# 使用 launch.sh 脚本（原始版本）
-./launch.sh dognav
-
-# 或使用 launch_service.sh（增强版本）
-./launch_service.sh full
 
 # 或单独启动
 source install/setup.bash
@@ -356,59 +354,6 @@ colcon build --symlink-install
 
 ---
 
-## 监控和调试
-
-### 查看节点列表
-
-```bash
-ros2 node list
-```
-
-### 查看话题连接
-
-```bash
-# 查看所有话题
-ros2 topic list
-
-# 查看话题信息
-ros2 topic info /waypoint_goals --verbose
-
-# 监听话题消息
-ros2 topic echo /waypoint_goals
-```
-
-### 查看服务
-
-```bash
-# 查看所有服务
-ros2 service list
-
-# 查看服务类型
-ros2 service type /agent/uav1/execute_task
-```
-
-### 查看日志
-
-```bash
-# 查看节点日志
-ros2 topic echo /rosout --filter 'node_name=="execute_task_node"'
-ros2 topic echo /rosout --filter 'node_name=="nav_waypoint_node"'
-```
-
-### 参数配置
-
-```bash
-# 查看参数
-ros2 param dump /nav_waypoint_node
-
-# 动态调整参数（切换到纯追踪模式）
-ros2 param set /nav_waypoint_node use_controller_server false
-
-# 动态调整参数（切换到外部控制器模式）
-ros2 param set /nav_waypoint_node use_controller_server true
-```
-
----
 
 ## 相关文档
 
@@ -428,87 +373,4 @@ ros2 param set /nav_waypoint_node use_controller_server true
 
 ---
 
-## 常见问题
 
-### Q: Gazebo 启动失败，gzserver 崩溃
-
-**现象**:
-```
-[ERROR] [gzserver]: process has died [exit code 255]
-[ERROR] [spawn_entity]: Service /spawn_entity unavailable
-```
-
-**原因**: Gazebo ROS 插件缺失 (`libgazebo_ros_init.so`)
-
-**解决**:
-```bash
-# 方法 1：运行安装脚本（需要 sudo）
-sudo ./install_gazebo_ros.sh
-
-# 方法 2：手动安装
-sudo apt install ros-humble-gazebo-ros-pkgs ros-humble-gazebo-dev
-
-# 方法 3：使用简化启动（不需要该插件）
-ros2 launch robot_scene go2_description.launch.py
-```
-
-详细文档：[doc/install_gazebo_ros.md](doc/install_gazebo_ros.md)
-
-### Q: 机器狗在 Gazebo 中直立且静止不动
-
-**原因**: `launch.sh dognav` 只启动导航节点，不直接控制关节。需要完整的控制链路。
-
-**解决**:
-```bash
-# 1. 启动 Gazebo
-ros2 launch robot_scene go2_lidar_gps.launch.py
-
-# 2. 键盘控制测试
-ros2 run teleop_twist_keyboard teleop_twist_keyboard
-
-# 3. 或启动完整导航
-ros2 launch gps_imu_fusion gps_imu_fusion.launch.py use_sim_time:=true &
-./launch_service.sh dognav
-python3 test_execute_task_py.py
-```
-
-详细文档：[doc/robot_pose_issue.md](doc/robot_pose_issue.md)
-
-### Q: 机器狗持续运动不停
-
-**原因**: 闭环里程计启用导致机器狗不断"纠正"位置。
-
-**解决**:
-```bash
-# 使用静态版本（禁用闭环里程计）
-ros2 launch robot_scene go2_lidar_gps_static.launch.py
-```
-
-详细文档：[doc/robot_moving_issue.md](doc/robot_moving_issue.md)
-
-### Q: 如何测试 execute_task_server
-
-**答案**: 不需要 Gazebo，直接运行：
-```bash
-colcon build --packages-select execute_task_server msg_set_msgs
-ros2 launch execute_task_server execute_task.launch.py agent_id:=uav1
-python3 test_execute_task_py.py
-```
-
-### Q: 服务不可用
-
-**A:** 确保 execute_task_server 已启动：
-```bash
-ros2 launch execute_task_server execute_task.launch.py agent_id:=uav1
-```
-
-### Q: 航点不执行
-
-**A:** 检查是否有 `/world_odom` 里程计数据：
-```bash
-ros2 topic echo /world_odom
-```
-
-### Q: 坐标转换问题
-
-**A:** GPS 坐标会自动转换为 ENU 局部坐标。使用 `is_gps_aid: true` 表示 GPS 坐标，`is_gps_aid: false` 表示局部坐标。

@@ -38,7 +38,7 @@ def generate_launch_description():
     links_config = os.path.join(config_pkg_share, "config/links/links.yaml")
     default_model_path = os.path.join(resource_pkg_share, "xacro/go2_robot_VLP.xacro")
     # default_world_path = os.path.join(resource_pkg_share, "worlds/garage.world")
-    default_world_path = os.path.join(resource_pkg_share, "worlds/agriculture.world")
+    default_world_path = os.path.join(resource_pkg_share, "worlds/agriculture_plus.world")
 
     # Gazebo 靠 GAZEBO_MODEL_PATH 解析 model://：sdformat 会把 URDF 里 mesh 的
     # package://<pkg>/... 自动改写成 model://<pkg>/...。champ_gazebo 是裸 ExecuteProcess

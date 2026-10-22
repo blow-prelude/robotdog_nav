@@ -44,12 +44,9 @@
         </material>
       </visual>
 
-      <collision>
-        <origin xyz="-0.011 -0.02329 -0.005" rpy="0 0 0"/>
-        <geometry>
-          <mesh filename="package://mid360_simulation/meshes/livox_frame.STL"/>
-        </geometry>
-      </collision>
+      <!-- 不设碰撞体：雷达 link 若带 trimesh 碰撞，always_on 的 ray 传感器
+           首次扫描即触发 ODE ray-vs-trimesh 段错误（gzserver exit -11）；
+           传感器 link 无碰撞体是常规做法，radar 固定在 trunk/base_link 上不影响运动 -->
     </link>
 
     <joint name="${name}_joint" type="fixed">

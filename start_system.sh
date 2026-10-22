@@ -162,10 +162,10 @@ start_component gps_imu_fusion \
   ros2 launch gps_imu_fusion gps_imu_fusion.launch.py use_sim_time:=$USE_SIM_TIME
 sleep 2  # 等 /world_odom 与 TF world→base_link 先起来
 
-# start_component waypoint_nav \
-  # ros2 launch waypoint_nav waypoint_nav.launch.py use_sim_time:=$USE_SIM_TIME simulation:=$SIMULATION
-start_component robotdog_nav2_bringup \
-  ros2 launch robotdog_nav2_bringup world_nav2.launch.py controller:=mppi planner:=smac
+start_component waypoint_nav \
+  ros2 launch waypoint_nav waypoint_nav.launch.py use_sim_time:=$USE_SIM_TIME simulation:=$SIMULATION
+# start_component robotdog_nav2_bringup \
+#   ros2 launch robotdog_nav2_bringup world_nav2.launch.py controller:=mppi planner:=smac
 sleep 2
 
 start_component execute_task_server \

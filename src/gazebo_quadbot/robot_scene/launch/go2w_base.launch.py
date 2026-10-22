@@ -7,7 +7,7 @@ from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import LaunchConfiguration
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 import os
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
 
 def generate_launch_description():
     pkg_go2w = FindPackageShare("go2w_description")
@@ -27,24 +27,22 @@ def generate_launch_description():
         description="World file name to load from the worlds directory"
     )
 
-    # （可选）阻止Gazebo从互联网自动下载模型（加速本地加载）
-    os.environ['GAZEBO_MODEL_DATABASE_URI'] = ""    
-    os.environ['GAZEBO_PLUGIN_PATH'] = '/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/lib'
-    # Set GAZEBO_MODEL_PATH to include local models only, disable online retrieval
-    local_models_path = os.path.expanduser('~/.gazebo/models')
-    pkg_models_path = os.path.join(get_package_share_directory('robot_scene'), 'models')
-    meshes_path = os.path.join(get_package_share_directory('robot_scene'), 'meshes')
-    gazebo_models_path = '/usr/share/gazebo-11/models'
-    model_paths = [local_models_path, pkg_models_path, gazebo_models_path, meshes_path]
-    os.environ['GAZEBO_MODEL_PATH'] = ':'.join(model_paths)
-    
-    # 设置GAZEBO_RESOURCE_PATH包含所有资源路径
-    resource_paths = [
-        '/usr/share/gazebo-11',
-        os.path.join(get_package_share_directory('go2w_description'), 'meshes'),
-        os.path.join(get_package_share_directory('robot_scene'), 'models')
-    ]
-    os.environ['GAZEBO_RESOURCE_PATH'] = ':'.join(resource_paths)
+    # 阻止Gazebo从互联网自动下载模型（加速本地加载）
+    os.environ['GAZEBO_MODEL_DATABASE_URI'] = ""
+    # Gazebo 靠 GAZEBO_MODEL_PATH 解析 model://：sdformat 会把 URDF 里 mesh 的
+    # package://<pkg>/... 自动改写成 model://<pkg>/...。在这里补上各 mesh 包
+    # share 的父目录（等价于 package.xml 里 gazebo_model_path 的 ${prefix}/..），
+    # 搜索路径方法与 go2_lidar_gps.launch.py 保持一致。
+    # ~/.gazebo/models 与 /usr/share/gazebo-11/models 是 Gazebo 内置默认路径，无需显式加入
+    gazebo_model_paths = []
+    for mesh_pkg in ("go2w_description", "mid360_simulation"):
+        try:
+            gazebo_model_paths.append(os.path.dirname(get_package_share_directory(mesh_pkg)))
+        except PackageNotFoundError:
+            pass
+    if os.environ.get("GAZEBO_MODEL_PATH"):
+        gazebo_model_paths.append(os.environ["GAZEBO_MODEL_PATH"])
+    os.environ["GAZEBO_MODEL_PATH"] = os.pathsep.join(gazebo_model_paths)
 
     # 添加GPU渲染优化环境变量
     mesa_adapter = SetEnvironmentVariable(
