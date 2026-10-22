@@ -1,0 +1,53 @@
+# 虚拟场景参数：话题/频率/坐标系/运动学限幅/点云采样/障碍场景（浮点必须带小数点）
+mock_scene_node:
+  ros__parameters:
+    # 话题
+    cmd_vel_topic: "/cmd_vel"
+    odom_topic: "/world_odom"
+    lidar_topic: "/livox/lidar"
+    clock_topic: "/clock"
+    marker_topic: "/mock_scene/markers"
+
+    # 频率（Hz）与开关
+    clock_rate: 50.0
+    odom_rate: 10.0
+    lidar_rate: 10.0
+    publish_clock: true
+    publish_markers: true
+
+    # 坐标系（与导航契约一致）
+    world_frame: "world"
+    base_frame: "base_link"
+    sensor_frame: "livox"
+    sensor_z: 0.1
+
+    # 运动学限幅（不低于控制器上限：waypoint_nav RPP 1.2、bringup smoother 1.0）
+    max_linear_vel: 1.5
+    max_lateral_vel: 0.6
+    max_angular_vel: 1.5
+    # 指令静默超时后的指数衰减
+    cmd_timeout: 0.5
+    cmd_decay_rate: 2.0
+
+    # 初始位姿（yaw 弧度）
+    initial_x: 0.0
+    initial_y: 0.0
+    initial_yaw: 0.0
+
+    # 点云采样：量程交集（bringup 障碍层 0.15-4.8/5.0，waypoint_nav 0-8），
+    # z 采样窗须在 (0.4, 1.0) 内（两栈 costmap 障碍高度带）
+    sensor_range: 5.0
+    min_sensor_range: 0.2
+    point_spacing: 0.1
+    z_sample_min: 0.45
+    z_sample_max: 0.95
+    max_points: 5000
+    point_intensity: 100.0
+
+    # 默认场景：验证目标点 (4, 0)
+    #   墙挡在 (0,0)→(4,0) 直线上，全局规划须绕行 |y|≈2.5~3 m；两柱点缀绕行走廊
+    #   box_obstacles      每项 [cx, cy, cz_base, dx, dy, dz]（中心 xy、底面 z、尺寸）
+    #   cylinder_obstacles 每项 [cx, cy, cz_base, r, h]
+    box_obstacles:      [2.0, 0.0, 0.4, 0.3, 3.0, 0.8]
+    cylinder_obstacles: [1.2, 1.8, 0.4, 0.2, 0.8,
+                         2.8, -1.8, 0.4, 0.25, 0.8]
